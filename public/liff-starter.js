@@ -69,23 +69,50 @@ function initializeLiff(myLiffId) {
  * Initialize the app by calling functions handling individual app components
  */
 function initializeApp() {
-    liff.login();
     displayLiffData();
     displayIsInClientInfo();
     registerButtonHandlers();
 
     // check if the user is logged in/out, and disable inappropriate button
     if (liff.isLoggedIn()) {
+        const idToken = liff.getIDToken();
+
         document.getElementById('liffLoginButton').disabled = true;
-        liff.getProfile().then(profile => {
-            const userId = profile.userId;
-            localStorage.setItem('USER_ID',userId);
-            // send mapping UUID/LINE User ID to Dynamic solution.
-            document.getElementById('lineUserId').textContent = localStorage.getItem('USER_ID');
-        })
+
+        localStorage.setItem('ID_TOKEN',idToken);
+        // display id token after login.
+        document.getElementById('idToken').textContent = localStorage.getItem('ID_TOKEN');
+        updateMappingTable();
     } else {
         document.getElementById('liffLogoutButton').disabled = true;
     }
+}
+
+function updateMappingTable() {
+    const xhr = new XMLHttpRequest();
+    // listen for `load` event
+    xhr.onreadystatechange = () => {
+        // print JSON response
+        if (xhr.status >= 200) {
+            if (xhr.status == 200) {
+                document.getElementById('status').textContent = "Success!";
+            } else if (xhr.status == 409) {
+                document.getElementById('status').textContent = "Line User Id already exist!";
+            } else if (xhr.status == 404) {
+                document.getElementById('status').textContent = "Contact UUID not found";
+            }
+
+        }
+    };
+
+    // create a JSON object
+    const json = { uuid: localStorage.getItem('UUID'), userToken: localStorage.getItem('ID_TOKEN')};
+    // open request
+    xhr.open('PUT', 'https://cors-anywhere.herokuapp.com/https://line-project-poc.herokuapp.com/updateMappingTable');
+    // set `Content-Type` header
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    // send rquest with JSON payload
+    xhr.send(JSON.stringify(json));
 }
 
 /**
@@ -228,7 +255,7 @@ function registerButtonHandlers() {
         if (liff.isLoggedIn()) {
             liff.logout();
             localStorage.removeItem('UUID');
-            localStorage.removeItem('USER_ID');
+            localStorage.removeItem('ID_TOKEN');
             window.location.reload();
         }
     });
