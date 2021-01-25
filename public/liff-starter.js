@@ -6,10 +6,11 @@ window.onload = function() {
     let myLiffId = "";
 
     const urlString = window.location.href;
-    const url = new URL(urlString);
+    const url = new URL(decodeURIComponent(urlString));
     const uuid = url.searchParams.get("UUID");
+
     if (uuid != null) {
-        localStorage.setItem('UUID',uuid);
+        setValue('UUID', uuid);
     }
 
     // if node is used, fetch the environment variable and pass it to the LIFF method
@@ -74,12 +75,18 @@ function initializeApp() {
 
     // check if the user is logged in/out, and disable inappropriate button
     if (liff.isLoggedIn()) {
-        const idToken = liff.getIDToken();
-
+        $.blockUI({ message: "<h3>Please wait...</h3>" });
         document.getElementById('liffLoginButton').disabled = true;
+        liff.getProfile().then(function(profile) {
+              setValue('USER_ID', profile.userId);
 
-        localStorage.setItem('ID_TOKEN',idToken);
-        updateMappingTable();
+              const idToken = liff.getIDToken();
+              setValue('ID_TOKEN',idToken);
+
+              updateMappingTable();
+        }).catch(function(error) {
+
+        });
     } else {
         document.getElementById('liffLogoutButton').disabled = true;
     }
@@ -87,30 +94,51 @@ function initializeApp() {
 
 function updateMappingTable() {
     const xhr = new XMLHttpRequest();
+   
     // listen for `load` event
+//    xhr.onreadystatechange = () => {
+//        if (xhr.readyState >= 2) {
+//            window.location.href = "https://line.me/R/ti/p/@335mqiis";
+//            liff.logout();
+//            $.unblockUI();
+//        }
+//    };
+
     xhr.onreadystatechange = () => {
-        // print JSON response
+            // print JSON response
         if (xhr.status >= 200) {
-            if (xhr.status == 200) {
+                window.location.href = "https://line.me/R/ti/p/@335mqiis";
+                liff.logout();
+                $.unblockUI();
+                if (xhr.status == 200) {
 
-            } else if (xhr.status == 409) {
+                } else if (xhr.status == 409) {
 
-            } else if (xhr.status == 404) {
+                } else if (xhr.status == 404) {
+
+                }
             }
-
-        }
     };
 
     // create a JSON object
-    const json = { uuid: localStorage.getItem('UUID'), userToken: localStorage.getItem('ID_TOKEN')};
+    const json = { uuid: getValue('UUID'), userToken: getValue('ID_TOKEN'),
+                lineUserId: getValue('USER_ID')};
     // open request
     xhr.open('PUT', 'https://cors-anywhere.herokuapp.com/https://line-project-poc.herokuapp.com/updateMappingTable');
     // set `Content-Type` header
     xhr.setRequestHeader('Content-Type', 'application/json');
     // send rquest with JSON payload
     xhr.send(JSON.stringify(json));
+}
 
-    window.location.href = "https://line.me/R/ti/p/@335mqiis";
+function xhrProgress(oEvent) {
+  if (oEvent.lengthComputable) {
+        window.location.href = "https://line.me/R/ti/p/@335mqiis";
+        liff.logout();
+        $.unblockUI();
+  } else {
+    // Unable to compute progress information since the total size is unknown
+  }
 }
 
 /**
@@ -130,6 +158,7 @@ function registerButtonHandlers() {
     // login call, only when external browser is used
     document.getElementById('liffLoginButton').addEventListener('click', function() {
         if (!liff.isLoggedIn()) {
+            let url = "https://lineprojectliff.herokuapp.com/index.html?UUID=" + getCookie("UUID");
             // set `redirectUri` to redirect the user to a URL other than the front page of your LIFF app.
             liff.login();
         }
@@ -139,8 +168,6 @@ function registerButtonHandlers() {
     document.getElementById('liffLogoutButton').addEventListener('click', function() {
         if (liff.isLoggedIn()) {
             liff.logout();
-            localStorage.removeItem('UUID');
-            localStorage.removeItem('ID_TOKEN');
             window.location.reload();
         }
     });
@@ -164,4 +191,29 @@ function toggleElement(elementId) {
     } else {
         elem.style.display = 'block';
     }
+}
+
+function getCookie(cname) {
+  var name = cname + "=";
+  var ca = document.cookie.split(';');
+  for(var i = 0; i < ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";
+}
+
+function setValue(key, value) {
+    localStorage.setItem(key, value);
+    document.cookie = key + "=" + value + ";";
+}
+
+function getValue(key) {
+    return localStorage.getItem(key);
+    //getCookie(key);
 }
